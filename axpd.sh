@@ -1,20 +1,15 @@
-#! /bin/bash
-hex2dec(){
-	echo 'ibase=16; obase=A; '"$1" | bc
-}
+#!/bin/bash
 checkbit(){
-	[ $(( $1 & $(( 1 << $2 )) )) != 0 ]
+	(( $1 & (1 << $2) ))
 }
 rmmod -f battery
-modprobe i2c-dev 
+modprobe i2c-dev
 modprobe test_power
-for i in 4 12
-do
-	if find /sys | grep axp288_charger | grep -q i2c-$i/
-	then
-		export ADDR=$i
-	fi
-done
+case "$(find /sys | grep axp288_charger)" in
+	(*i2c-12*)	export ADDR=12;; 
+	(*i2c-4*)	export ADDR=4;;
+	(*)		echo "WTF?"; exit 1;;
+esac
 while true
 do
 	rmmod battery 2>/dev/null
@@ -35,12 +30,10 @@ do
 		echo off > /sys/module/test_power/parameters/usb_online
 		echo discharging > /sys/module/test_power/parameters/battery_status
 	fi
-	hex=$(i2cget -f -y $ADDR 0x34 0xb9 | cut -c 3- | tr a-z A-Z)
-	capacity=$(expr $(hex2dec $hex) - 128)
-	if [ $capacity -ge 0 ]
+	((capacity = $(i2cget -f -y $ADDR 0x34 0xb9) - 128))
+	if ((capacity > 0))
 	then
 		echo $capacity | tee /sys/module/test_power/parameters/battery_capacity
 	fi
 	sleep 10
 done
-
