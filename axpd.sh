@@ -5,7 +5,7 @@ checkbit(){
 rmmod -f battery
 modprobe i2c-dev
 modprobe test_power
-case "$(find /sys | grep axp288_charger)" in
+case "$(find /sys -path '*axp288_charger*')" in
 	(*i2c-12*)	export ADDR=12;; 
 	(*i2c-4*)	export ADDR=4;;
 	(*)		echo "WTF?"; exit 1;;
