@@ -30,8 +30,7 @@ do
 		echo off > /sys/module/test_power/parameters/usb_online
 		echo discharging > /sys/module/test_power/parameters/battery_status
 	fi
-	((capacity = $(i2cget -f -y $ADDR 0x34 0xb9) - 128))
-	if ((capacity > 0))
+	if (( (capacity = $(i2cget -f -y $ADDR 0x34 0xb9) - 128) > 0))
 	then
 		echo $capacity | tee /sys/module/test_power/parameters/battery_capacity
 	fi
