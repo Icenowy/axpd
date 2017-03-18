@@ -5,42 +5,37 @@ hex2dec(){
 checkbit(){
 	[ $(( $1 & $(( 1 << $2 )) )) != 0 ]
 }
-rmmod -f battery
-modprobe i2c-dev 
+readreg(){
+	cat /sys/kernel/debug/regmap/sunxi-rsb-3a3/registers | grep ^$1: | cut -d ' ' -f 2 | tr a-z A-Z
+}
+
 modprobe test_power
-for i in 4 12
-do
-	if find /sys | grep axp288_charger | grep -q i2c-$i/
-	then
-		export ADDR=$i
-	fi
-done
+
 while true
 do
-	rmmod battery 2>/dev/null
 	echo off > /sys/module/test_power/parameters/ac_online
 	echo LION > /sys/module/test_power/parameters/battery_technology
-	source_status_reg=$(i2cget -f -y $ADDR 0x34 0x00)
-	charger_status_reg=$(i2cget -f -y $ADDR 0x34 0x01)
-	if checkbit $source_status_reg 4
+	source_status_reg=$(readreg 00)
+	charger_status_reg=$(readreg 01)
+	if checkbit 0x$source_status_reg 7
 	then
-		echo on > /sys/module/test_power/parameters/usb_online
-		if checkbit $charger_status_reg 6
+		echo on > /sys/module/test_power/parameters/ac_online
+		if checkbit 0x$charger_status_reg 6
 		then
 			echo charging > /sys/module/test_power/parameters/battery_status
 		else
 			echo not-charging > /sys/module/test_power/parameters/battery_status
 		fi
 	else
-		echo off > /sys/module/test_power/parameters/usb_online
+		echo off > /sys/module/test_power/parameters/ac_online
 		echo discharging > /sys/module/test_power/parameters/battery_status
 	fi
-	hex=$(i2cget -f -y $ADDR 0x34 0xb9 | cut -c 3- | tr a-z A-Z)
+	hex=$(readreg b9)
 	capacity=$(expr $(hex2dec $hex) - 128)
 	if [ $capacity -ge 0 ]
 	then
 		echo $capacity | tee /sys/module/test_power/parameters/battery_capacity
 	fi
-	sleep 10
+	sleep 1
 done
 
